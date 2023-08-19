@@ -13,29 +13,30 @@ import tkinter as tk
 from tkinter import filedialog
 from tkinter import messagebox
 import concurrent.futures
-
-
+import multiprocessing
+import numpy as np
 class search():
     def __init__(self, m_borough, m_block, m_lot, m_bbl):
+        self.proc = True
         self.borough = m_borough
         self.block = m_block
         self.lot = m_lot
         self.bbl = m_bbl
         search_url = "https://a836-acris.nyc.gov/DS/DocumentSearch/BBL"
-        op = uc.ChromeOptions()
-        custom_user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
+        op = webdriver.ChromeOptions()
+        # custom_user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
         op.add_argument("--disable-blink-feature=AutomationControlled")
-        op.add_argument(f'--user-agent={custom_user_agent}')
+        # op.add_argument(f'--user-agent={custom_user_agent}')
         op.add_argument(f'--headless={True}')
 
-        self.driver = uc.Chrome(options=op)
+        self.driver = webdriver.Chrome(options=op)
         self.driver.maximize_window()
         self.driver.execute_script(
             "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
         self.driver.get(search_url)
         time.sleep(1)
-
     def search(self):
+        
         if not os.path.exists(self.bbl):
             os.mkdir(self.bbl)
         borough_mapping = {'BK': '3', 'MN': '1',
@@ -113,6 +114,8 @@ class search():
             dff.to_csv(
                 f"{self.bbl}/Search Results By Parcel Identifier.csv", index=None, header=False, quoting=1)
             self.fetchdata()
+            
+                
             self.driver.quit()
         except:
             self.driver.quit()
@@ -133,7 +136,6 @@ class search():
                     continue
                 td = i.find_elements(By.XPATH, "td")
                 tdlist = []
-
                 for num, itm in enumerate(td, start=0):
                     if num == 0 and flag == False and m_check == False:
                         tdlist.append(itm.text)
@@ -158,6 +160,7 @@ class search():
                 self.searchlist.append(tdlist)
         except:
             pass
+   
 
     def fetchdata(self):
         
@@ -173,22 +176,19 @@ class search():
             # Submit tasks to the thread pool
             for task_number in range(num_iterations):
                 executor.submit(self.fetchdet, task_number)
-     
-
 
     def fetchdet(self,index):
         print("start")
-        op = uc.ChromeOptions()
-        custom_user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
+        op = webdriver.ChromeOptions()
+        # custom_user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
         op.add_argument("--disable-blink-feature=AutomationControlled")
-        op.add_argument(f'--user-agent={custom_user_agent}')
+        # op.add_argument(f'--user-agent={custom_user_agent}')
         op.add_argument(f'--headless={True}')
 
-        driver = uc.Chrome(options=op)
+        driver = webdriver.Chrome(options=op)
         driver.maximize_window()
         driver.execute_script(
             "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
-        
         try:
             itemlist = list(self.detlist.items())
             key, value = itemlist[index]
@@ -207,10 +207,10 @@ class search():
 
     def fetchimg(self,index):
         print("start")
-        op = uc.ChromeOptions()
-        custom_user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
+        op = webdriver.ChromeOptions()
+        # custom_user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
         op.add_argument("--disable-blink-feature=AutomationControlled")
-        op.add_argument(f'--user-agent={custom_user_agent}')
+        # op.add_argument(f'--user-agent={custom_user_agent}')
         op.add_argument(f'--headless={True}')
         download_folder = os.path.join(os.getcwd(), self.bbl)
         print(download_folder)
@@ -218,9 +218,8 @@ class search():
             "download.default_directory": download_folder,
             "download.prompt_for_download": False,
             "download.directory_upgrade": True
-
         })
-        driver = uc.Chrome(options=op)
+        driver = webdriver.Chrome(options=op)
         driver.maximize_window()
         driver.execute_script(
             "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
@@ -260,6 +259,8 @@ init_file_path = ''
 
 def importCSV():
     global init_file_path
+    global dataList
+    global cont
     if init_file_path == '':
         show_alert("Select a csv file")
         statev.set("Error")
@@ -271,8 +272,16 @@ def importCSV():
         tmp["block"] = str(chunk.iloc[0, 1])
         tmp["lot"] = str(chunk.iloc[0, 2])
         tmp["bbl"] = str(chunk.iloc[0, 3])
-        global dataList
+
         dataList.append(tmp)
+    if os.path.exists("save.npy"):
+        num = ''
+        cont = 0
+        num = np.load("save.npy")
+        if num !='':
+            cont = num
+    else:
+        cont = 0
     return True
 
 
@@ -285,37 +294,37 @@ def open_file_dialog():
 
 
 def start():
-
     thread = threading.Thread(target=starting)
     thread.daemon = True
     thread.start()
-
-
 def starting():
     statev.set("Processing")
     global dataList
     dataList = []
+    global cont
     if importCSV():
-        for i in dataList:
-            thread = threading.Thread(target=initial, args=(i,))
-            thread.daemon = True
-            thread.start()
-            thread.join()
+        for num, i in enumerate(dataList[cont:]):
+            tmp = []
+            initial(i,num)
+            np.save("save.npy",num+1)
         statev.set("Done!")
-        # initial()
     else:
         return
 
 
-def initial(i):
+def initial(i,number):
+    global cont
     instance = search(i["borough"], i["block"], i["lot"], i["bbl"])
     instance.search()
+    global statev
+    statev.set(i["bbl"])
+    progressv.set(f"{number+1}/{len(dataList[cont:])}")
     instance.savecsv()
 
 font = ("Arial", 20)
 root = tk.Tk()
 root.title("App")
-root.geometry("500x400")
+root.geometry("500x450")
 open_button = tk.Button(root, text="Open CSV File",
                         width=20, height=2, command=open_file_dialog, font=font)
 open_button.pack(padx=20, pady=50)
@@ -325,4 +334,9 @@ fetch_button.pack(padx=20, pady=30)
 statev = tk.StringVar()
 statelabel = tk.Label(root, textvariable=statev, font=font)
 statelabel.pack(padx=10, pady=10)
+progressv = tk.StringVar()
+font1 = ("Arial",18)
+
+progress = tk.Label(root, textvariable=progressv, font=font1)
+progress.pack(padx=10, pady=1)
 root.mainloop()
