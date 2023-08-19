@@ -13,7 +13,6 @@ import tkinter as tk
 from tkinter import filedialog
 from tkinter import messagebox
 import concurrent.futures
-import multiprocessing
 import numpy as np
 class search():
     def __init__(self, m_borough, m_block, m_lot, m_bbl):
