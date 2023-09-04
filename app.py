@@ -118,8 +118,6 @@ class search():
                     self.acris +="\n"
                 self.acris +="--------------Details----------------\n"
                 self.fetchdata()
-
-            #Zola
             self.zola(self.bbl)
             content = ''
             content += self.zolaContent + "\n" + self.acris + "\n" + self.bisweb
